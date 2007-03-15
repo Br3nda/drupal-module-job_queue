@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.1.2.1 2007/03/15 23:53:26 drumm Exp $
+// $Id: job_queue.module,v 1.1.2.2 2007/03/15 23:59:46 drumm Exp $
 
 function job_queue_menu($may_cache) {
   $items = array();
@@ -60,10 +60,10 @@ function job_queue_dequeue() {
     $job = db_fetch_object($result);
     if (function_exists($job->function)) {
       call_user_func_array($job->function, unserialize($job->arguments));
-      watchdog('job_queue', t('Ran queued job "%description"', array('%description' => $job->description)));
+      watchdog('job_queue', t('Ran queued job "!description"', array('!description' => $job->description)));
     }
     else {
-      watchdog('job_queue', t('Failed to run queued job "%description" because the function %function is not defined.', array('%description' => $job->description, '%function' => $job->function)), WATCHDOG_ERROR);
+      watchdog('job_queue', t('Failed to run queued job "!description" because the function %function is not defined.', array('!description' => $job->description, '%function' => $job->function)), WATCHDOG_ERROR);
     }
     db_query('DELETE FROM {job_queue} WHERE jqid = %d', $job->jqid);
     return TRUE;
