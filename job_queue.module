@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.1 2007/03/13 00:35:48 drumm Exp $
+// $Id: job_queue.module,v 1.1.2.1 2007/03/15 23:53:26 drumm Exp $
 
 function job_queue_menu($may_cache) {
   $items = array();
@@ -92,7 +92,7 @@ function job_queue_list() {
       t('Created'),
       t('Description'),
     );
-    $result = db_query('SELECT created, description FROM {job_queue} ORDER BY jqid');
+    $result = pager_query('SELECT created, description FROM {job_queue} ORDER BY jqid', 20);
     $rows = array();
     while ($job = db_fetch_object($result)) {
       $rows[] = array(
@@ -101,6 +101,7 @@ function job_queue_list() {
       );
     }
     $output .= theme('table', $header, $rows);
+    $output .= theme('pager', array(), 20);
   }
 
   return $output;
