@@ -15,3 +15,16 @@ function job_queue_install() {
       break;
   }
 }
+
+function job_queue_update_1() {
+  $return = array();
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $return[] = update_sql('ALTER TABLE {job_queue} ADD file varchar(255) NOT NULL');
+      break;
+  }
+
+  return $return;
+}

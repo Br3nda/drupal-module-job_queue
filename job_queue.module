@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.1.2.2 2007/03/15 23:59:46 drumm Exp $
+// $Id: job_queue.module,v 1.1.2.3 2007/08/02 20:09:55 drumm Exp $
 
 function job_queue_menu($may_cache) {
   $items = array();
@@ -42,10 +42,11 @@ function job_queue_requirements($phase) {
  *
  * @param $function The function name to call.
  * @param $description A human-readable description of the queued job.
- * @param $arguments An array of arguments to pass to the function.
+ * @param $arguments Optional array of arguments to pass to the function.
+ * @param $file Optional file path which needs to be included for $fucntion.
  */
-function job_queue_add($function, $description, $arguments = array()) {
-  db_query("INSERT INTO {job_queue} (jqid, created, description, function, arguments) VALUES (%d, %d, '%s', '%s', '%s')", db_next_id('{job_queue}_jqid'), time(), $description, $function, serialize($arguments));
+function job_queue_add($function, $description, $arguments = array(), $file = '') {
+  db_query("INSERT INTO {job_queue} (jqid, created, description, function, arguments, file) VALUES (%d, %d, '%s', '%s', '%s', '%s')", db_next_id('{job_queue}_jqid'), time(), $description, $function, serialize($arguments), $file);
 }
 
 /**
@@ -55,9 +56,10 @@ function job_queue_add($function, $description, $arguments = array()) {
  *   executing. FALSE if the queue was empty.
  */
 function job_queue_dequeue() {
-  $result = db_query_range('SELECT jqid, description, function, arguments FROM {job_queue} ORDER BY jqid', 0, 1);
+  $result = db_query_range('SELECT jqid, description, function, arguments, file FROM {job_queue} ORDER BY jqid', 0, 1);
   if (db_num_rows($result) > 0) {
     $job = db_fetch_object($result);
+    include_once $job->file;
     if (function_exists($job->function)) {
       call_user_func_array($job->function, unserialize($job->arguments));
       watchdog('job_queue', t('Ran queued job "!description"', array('!description' => $job->description)));
