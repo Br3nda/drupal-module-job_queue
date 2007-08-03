@@ -10,6 +10,7 @@ function job_queue_install() {
         description varchar(255) NOT NULL,
         function varchar(255) NOT NULL,
         arguments text NOT NULL,
+        file varchar(255) NOT NULL,
         PRIMARY KEY (jqid)
       )');
       break;
