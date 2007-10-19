@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.1.2.3 2007/08/02 20:09:55 drumm Exp $
+// $Id: job_queue.module,v 1.1.2.4 2007/10/19 22:52:47 drumm Exp $
 
 function job_queue_menu($may_cache) {
   $items = array();
@@ -74,10 +74,12 @@ function job_queue_dequeue() {
 }
 
 function job_queue_cron() {
-  while (job_queue_dequeue()) {
+  $job_count = db_result(db_query('SELECT count(*) FROM {job_queue}'));
+  while ($job_count > 0 && job_queue_dequeue()) {
     if ((timer_read('page') / 1000) > (ini_get('max_execution_time') / 2)) {
-      break; // Stop once we have used over half of the maximum execution time.
+      break; // Stop once we have used over half of the maximum execution time or exceeds the original number of jobs.
     }
+    $job_count -= 1;
   }
 }
 
