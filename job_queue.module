@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.1.2.4 2007/10/19 22:52:47 drumm Exp $
+// $Id: job_queue.module,v 1.1.2.5 2007/10/19 22:55:06 drumm Exp $
 
 function job_queue_menu($may_cache) {
   $items = array();
@@ -59,7 +59,9 @@ function job_queue_dequeue() {
   $result = db_query_range('SELECT jqid, description, function, arguments, file FROM {job_queue} ORDER BY jqid', 0, 1);
   if (db_num_rows($result) > 0) {
     $job = db_fetch_object($result);
-    include_once $job->file;
+    if (!empty($job->file)) {
+      include_once $job->file;
+    }
     if (function_exists($job->function)) {
       call_user_func_array($job->function, unserialize($job->arguments));
       watchdog('job_queue', t('Ran queued job "!description"', array('!description' => $job->description)));
