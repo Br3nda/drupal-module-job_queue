@@ -1,5 +1,7 @@
 <?php
-// $Id: job_queue.module,v 1.1.2.5 2007/10/19 22:55:06 drumm Exp $
+// $Id: job_queue.module,v 1.1.2.6 2008/01/18 07:35:08 drumm Exp $
+
+define('JOB_QUEUE_DO_NOT_RUN', 127); // tinyint max
 
 function job_queue_menu($may_cache) {
   $items = array();
@@ -12,13 +14,21 @@ function job_queue_menu($may_cache) {
       'callback' => 'job_queue_list',
       'access' => user_access('view queued jobs'),
     );
+    $items[] = array(
+      'path' => 'admin/settings/job_queue',
+      'title' => t('Job queue'),
+      'description' => t('Set queue priorities.'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('job_queue_settings_form'),
+      'access' => user_access('administer job queue'),
+    );
   }
 
   return $items;
 }
 
 function job_queue_perm() {
-  return array('view queued jobs');
+  return array('view queued jobs', 'administer job queue');
 }
 
 function job_queue_requirements($phase) {
@@ -46,7 +56,13 @@ function job_queue_requirements($phase) {
  * @param $file Optional file path which needs to be included for $fucntion.
  */
 function job_queue_add($function, $description, $arguments = array(), $file = '') {
-  db_query("INSERT INTO {job_queue} (jqid, created, description, function, arguments, file) VALUES (%d, %d, '%s', '%s', '%s', '%s')", db_next_id('{job_queue}_jqid'), time(), $description, $function, serialize($arguments), $file);
+  static $priorities;
+
+  if (!isset($priorities[$function])) {
+    $priorities[$function] = db_result(db_query("SELECT priority FROM {job_queue_functions} WHERE function = '%s'", $function));
+  }
+
+  db_query("INSERT INTO {job_queue} (jqid, created, description, function, arguments, file, priority) VALUES (%d, %d, '%s', '%s', '%s', '%s', %d)", db_next_id('{job_queue}_jqid'), time(), $description, $function, serialize($arguments), $file, $priorities[$function]);
 }
 
 /**
@@ -56,7 +72,7 @@ function job_queue_add($function, $description, $arguments = array(), $file = ''
  *   executing. FALSE if the queue was empty.
  */
 function job_queue_dequeue() {
-  $result = db_query_range('SELECT jqid, description, function, arguments, file FROM {job_queue} ORDER BY jqid', 0, 1);
+  $result = db_query_range('SELECT jqid, description, function, arguments, file FROM {job_queue} WHERE priority <> %d ORDER BY priority, jqid', JOB_QUEUE_DO_NOT_RUN, 0, 1);
   if (db_num_rows($result) > 0) {
     $job = db_fetch_object($result);
     if (!empty($job->file)) {
@@ -98,7 +114,7 @@ function job_queue_list() {
       t('Created'),
       t('Description'),
     );
-    $result = pager_query('SELECT created, description FROM {job_queue} ORDER BY jqid', 20);
+    $result = pager_query('SELECT created, description FROM {job_queue} ORDER BY priority, jqid', 20);
     $rows = array();
     while ($job = db_fetch_object($result)) {
       $rows[] = array(
@@ -111,4 +127,76 @@ function job_queue_list() {
   }
 
   return $output;
+}
+
+/**
+ * Job queue function prioritization.
+ *
+ * hook_job_queue_functions() should return
+ *   array(
+ *     'function_name' => array(
+ *       'title' => t('Human-readable explanation'),
+ *     ),
+ *     ...
+ *   );
+ *
+ * Functions which do not have entries in a implementation of this hook will
+ * always have the default priority.
+ */
+function job_queue_settings_form() {
+  $result = db_query('SELECT function, priority FROM {job_queue_functions}');
+  $priorities = array();
+  while ($function = db_fetch_object($result)) {
+    $priorities[$function->function] = $function->priority;
+  }
+
+  $form = array();
+
+  $form['priorities'] = array(
+    '#theme' => 'job_queue_priorities_table',
+    '#tree' => TRUE,
+  );
+  foreach (module_invoke_all('job_queue_functions') as $function => $metadata) {
+    $form['priorities'][$function] = array();
+    $form['priorities'][$function]['title'] = array(
+      '#value' => $metadata['title'],
+    );
+    $form['priorities'][$function]['priority'] = array(
+      '#type' => 'select',
+      '#options' => (drupal_map_assoc(range(-10, 10)) + array(JOB_QUEUE_DO_NOT_RUN => t('Do not run'))),
+      '#default_value' => array_key_exists($function, $priorities) ? $priorities[$function] : 0,
+    );
+  }
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save settings'),
+  );
+
+  return $form;
+}
+
+function theme_job_queue_priorities_table($element) {
+  $headers = array(
+    t('Job type'),
+    t('Priority'),
+  );
+
+  $rows = array();
+  foreach (element_children($element) as $function) {
+    $rows[] = array(
+      drupal_render($element[$function]['title']),
+      drupal_render($element[$function]['priority']),
+    );
+  }
+
+  return theme('table', $headers, $rows);
+}
+
+function job_queue_settings_form_submit($form_id, $form_values) {
+  foreach ($form_values['priorities'] as $function => $data) {
+    db_query("DELETE FROM {job_queue_functions} WHERE function = '%s'", $function);
+    db_query("INSERT INTO {job_queue_functions} (function, priority) VALUES ('%s', %d)", $function, $data['priority']);
+    db_query("UPDATE {job_queue} SET priority = %d WHERE function = '%s'", $data['priority'], $function);
+  }
+  drupal_set_message(t('Saved job queue settings.'));
 }

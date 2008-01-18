@@ -11,8 +11,15 @@ function job_queue_install() {
         function varchar(255) NOT NULL,
         arguments text NOT NULL,
         file varchar(255) NOT NULL,
-        PRIMARY KEY (jqid)
-      )');
+        priority tinyint NOT NULL,
+        PRIMARY KEY (jqid),
+        INDEX (priority, jqid)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ');
+      db_query('CREATE TABLE {job_queue_functions} (
+        function varchar(255) NOT NULL,
+        priority tinyint NOT NULL,
+        PRIMARY KEY (function)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ');
       break;
   }
 }
@@ -24,6 +31,25 @@ function job_queue_update_1() {
     case 'mysql':
     case 'mysqli':
       $return[] = update_sql('ALTER TABLE {job_queue} ADD file varchar(255) NOT NULL');
+      break;
+  }
+
+  return $return;
+}
+
+function job_queue_update_2() {
+  $return = array();
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $return[] = update_sql('CREATE TABLE {job_queue_functions} (
+        function varchar(255) NOT NULL,
+        priority tinyint NOT NULL,
+        PRIMARY KEY (function)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ');
+      $return[] = update_sql('ALTER TABLE {job_queue} ADD priority tinyint NOT NULL');
+      $return[] = update_sql('ALTER TABLE {job_queue} ADD INDEX (priority, jqid)');
       break;
   }
 
