@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.1.2.6 2008/01/18 07:35:08 drumm Exp $
+// $Id: job_queue.module,v 1.1.2.7 2008/03/11 19:04:20 drumm Exp $
 
 define('JOB_QUEUE_DO_NOT_RUN', 127); // tinyint max
 
@@ -50,16 +50,30 @@ function job_queue_requirements($phase) {
  * Add a job to the queue. The function added will be called in the order it
  * was added during cron.
  *
- * @param $function The function name to call.
- * @param $description A human-readable description of the queued job.
- * @param $arguments Optional array of arguments to pass to the function.
- * @param $file Optional file path which needs to be included for $fucntion.
+ * @param $function
+ *   The function name to call.
+ * @param $description
+ *   A human-readable description of the queued job.
+ * @param $arguments
+ *   Optional array of arguments to pass to the function.
+ * @param $file
+ *   Optional file path which needs to be included for $fucntion.
+ * @param $no_duplicate
+ *   If TRUE, do not add the job to the queue if one with the same function and
+ *   arguments already exists.
  */
-function job_queue_add($function, $description, $arguments = array(), $file = '') {
+function job_queue_add($function, $description, $arguments = array(), $file = '', $no_duplicate = FALSE) {
   static $priorities;
 
   if (!isset($priorities[$function])) {
     $priorities[$function] = db_result(db_query("SELECT priority FROM {job_queue_functions} WHERE function = '%s'", $function));
+  }
+
+  if ($no_duplicate) {
+    $result = db_result(db_query("SELECT jqid FROM {job_queue} WHERE function = '%s' AND arguments = '%s'", $function, serialize($arguments)));
+    if (!empty($result)) {
+      return;
+    }
   }
 
   db_query("INSERT INTO {job_queue} (jqid, created, description, function, arguments, file, priority) VALUES (%d, %d, '%s', '%s', '%s', '%s', %d)", db_next_id('{job_queue}_jqid'), time(), $description, $function, serialize($arguments), $file, $priorities[$function]);
