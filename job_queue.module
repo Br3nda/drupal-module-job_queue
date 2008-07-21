@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.5 2008/07/21 00:52:32 drumm Exp $
+// $Id: job_queue.module,v 1.6 2008/07/21 01:17:24 drumm Exp $
 
 /**
  * @file job_queue.module
@@ -191,6 +191,14 @@ function job_queue_settings_form() {
       '#default_value' => array_key_exists($function, $priorities) ? $priorities[$function] : 0,
     );
   }
+  $form['priorities'][''] = array();
+  $form['priorities']['']['title'] = array(
+    '#value' => t('All other functions'),
+  );
+  $form['priorities']['']['priority'] = array(
+    '#value' => '0',
+  );
+
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save settings'),
