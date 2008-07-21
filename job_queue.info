@@ -1,2 +1,3 @@
 name = Job queue
 description = An API for modules to add jobs to a queue for running on cron.
+core = 6.x

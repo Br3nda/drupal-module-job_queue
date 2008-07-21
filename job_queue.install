@@ -1,38 +1,45 @@
 <?php
+// $Id: job_queue.install,v 1.3 2008/07/21 00:16:30 drumm Exp $
 
 function job_queue_install() {
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      db_query('CREATE TABLE {job_queue} (
-        jqid int NOT NULL,
-        created int NOT NULL,
-        description varchar(255) NOT NULL,
-        function varchar(255) NOT NULL,
-        arguments text NOT NULL,
-        file varchar(255) NOT NULL,
-        priority tinyint NOT NULL,
-        PRIMARY KEY (jqid),
-        INDEX (priority, jqid)
-      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ');
-      db_query('CREATE TABLE {job_queue_functions} (
-        function varchar(255) NOT NULL,
-        priority tinyint NOT NULL,
-        PRIMARY KEY (function)
-      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ');
-      break;
-  }
+  drupal_install_schema('job_queue');
 }
+
+function job_queue_uninstall() {
+  drupal_uninstall_schema('job_queue');
+}
+
+function job_queue_schema() {
+  $schema['job_queue'] = array(
+    'fields' => array(
+      'jqid' => array('type' => 'serial', 'not null' => TRUE),
+      'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+      'description' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE),
+      'function' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE),
+      'arguments' => array('type' => 'text', 'not null' => TRUE),
+      'file' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE),
+      'priority' => array('type' => 'int', 'not null' => TRUE, 'size' => 'tiny'),
+    ),
+    'indexes' => array(
+      'priority' => array('priority', 'jqid'),
+    ),
+    'primary key' => array('jqid'),
+  );
+  $schema['job_queue_functions'] = array(
+    'fields' => array(
+      'function' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE),
+      'priority' => array('type' => 'int', 'not null' => TRUE, 'size' => 'tiny'),
+    ),
+    'primary key' => array('function'),
+  );
+  return $schema;
+}
+
 
 function job_queue_update_1() {
   $return = array();
 
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      $return[] = update_sql('ALTER TABLE {job_queue} ADD file varchar(255) NOT NULL');
-      break;
-  }
+  db_add_field($return, 'job_queue', 'file', array('type' => 'varchar', 'not null' => TRUE, 'length' => 255));
 
   return $return;
 }
@@ -40,18 +47,16 @@ function job_queue_update_1() {
 function job_queue_update_2() {
   $return = array();
 
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      $return[] = update_sql('CREATE TABLE {job_queue_functions} (
-        function varchar(255) NOT NULL,
-        priority tinyint NOT NULL,
-        PRIMARY KEY (function)
-      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ');
-      $return[] = update_sql('ALTER TABLE {job_queue} ADD priority tinyint NOT NULL');
-      $return[] = update_sql('ALTER TABLE {job_queue} ADD INDEX (priority, jqid)');
-      break;
-  }
+  $schema['job_queue_functions'] = array(
+    'fields' => array(
+      'function' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE),
+      'priority' => array('type' => 'int', 'not null' => TRUE, 'size' => 'tiny'),
+    ),
+    'primary key' => array('function'),
+  );
+  db_create_table($return, 'job_queue_functions', $schema['job_queue_functions']);
+  db_add_field($return, 'job_queue', 'priority', array('type' => 'int', 'not null' => TRUE, 'size' => 'tiny'));
+  db_add_index($return, 'job_queue', 'priority', array('priority', 'jqid'));
 
   return $return;
 }
