@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.4 2008/07/21 00:20:02 drumm Exp $
+// $Id: job_queue.module,v 1.5 2008/07/21 00:52:32 drumm Exp $
 
 /**
  * @file job_queue.module
@@ -95,22 +95,24 @@ function job_queue_add($function, $description, $arguments = array(), $file = ''
  *   executing. FALSE if the queue was empty.
  */
 function job_queue_dequeue() {
-  $result = db_query_range('SELECT jqid, description, function, arguments, file FROM {job_queue} WHERE priority <> %d ORDER BY priority, jqid', JOB_QUEUE_DO_NOT_RUN, 0, 1);
-  if ($job = db_fetch_object($result)) {
-    if (!empty($job->file)) {
-      include_once $job->file;
-    }
-    if (function_exists($job->function)) {
-      call_user_func_array($job->function, unserialize($job->arguments));
-      watchdog('job_queue', 'Ran queued job "!description"', array('!description' => $job->description));
-    }
-    else {
-      watchdog('job_queue', 'Failed to run queued job "!description" because the function %function is not defined.', array('!description' => $job->description, '%function' => $job->function), WATCHDOG_ERROR);
-    }
-    db_query('DELETE FROM {job_queue} WHERE jqid = %d', $job->jqid);
-    return TRUE;
+  $job = db_fetch_object(db_query_range('SELECT jqid, description, function, arguments, file FROM {job_queue} WHERE priority <> %d ORDER BY priority, jqid', JOB_QUEUE_DO_NOT_RUN, 0, 1));
+  if ($job === FALSE) {
+    return FALSE;
   }
-  return FALSE;
+
+  if (!empty($job->file)) {
+    include_once $job->file;
+  }
+  if (function_exists($job->function)) {
+    call_user_func_array($job->function, unserialize($job->arguments));
+    watchdog('job_queue', 'Ran queued job "!description"', array('!description' => $job->description));
+  }
+  else {
+    watchdog('job_queue', 'Failed to run queued job "!description" because the function %function is not defined.', array('!description' => $job->description, '%function' => $job->function), WATCHDOG_ERROR);
+  }
+  db_query('DELETE FROM {job_queue} WHERE jqid = %d', $job->jqid);
+
+  return TRUE;
 }
 
 function job_queue_cron() {
