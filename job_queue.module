@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.3 2008/07/21 00:16:30 drumm Exp $
+// $Id: job_queue.module,v 1.4 2008/07/21 00:20:02 drumm Exp $
 
 /**
  * @file job_queue.module
@@ -141,7 +141,7 @@ function job_queue_list() {
     while ($job = db_fetch_object($result)) {
       $rows[] = array(
         format_date($job->created),
-        $job->description,
+        t($job->description),
       );
     }
     $output .= theme('table', $header, $rows);
