@@ -1,5 +1,5 @@
 <?php
-// $Id: job_queue.module,v 1.6 2008/07/21 01:17:24 drumm Exp $
+// $Id: job_queue.module,v 1.7 2008/08/18 07:35:59 drumm Exp $
 
 /**
  * @file job_queue.module
@@ -101,11 +101,12 @@ function job_queue_dequeue() {
   }
 
   if (!empty($job->file)) {
-    include_once $job->file;
+    include_once './'. $job->file;
   }
   if (function_exists($job->function)) {
-    call_user_func_array($job->function, unserialize($job->arguments));
-    watchdog('job_queue', 'Ran queued job "!description"', array('!description' => $job->description));
+    $arguments = unserialize($job->arguments);
+    call_user_func_array($job->function, $arguments);
+    watchdog('job_queue', 'Ran queued job "!description"', array('!description' => t($job->description, $arguments)));
   }
   else {
     watchdog('job_queue', 'Failed to run queued job "!description" because the function %function is not defined.', array('!description' => $job->description, '%function' => $job->function), WATCHDOG_ERROR);
@@ -138,12 +139,12 @@ function job_queue_list() {
       t('Created'),
       t('Description'),
     );
-    $result = pager_query('SELECT created, description FROM {job_queue} ORDER BY priority, jqid', 20);
+    $result = pager_query('SELECT created, description, arguments FROM {job_queue} ORDER BY priority, jqid', 20);
     $rows = array();
     while ($job = db_fetch_object($result)) {
       $rows[] = array(
         format_date($job->created),
-        t($job->description),
+        t($job->description, unserialize($job->arguments)),
       );
     }
     $output .= theme('table', $header, $rows);
